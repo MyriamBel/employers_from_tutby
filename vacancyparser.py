@@ -15,7 +15,8 @@ list_re = [
 
 name_class = [
     'employers-company__pager',  # for next page
-    'employers-company__list employers-company__list_companies'  # for current page
+    'employers-company__list employers-company__list_companies',  # for current page
+    'g-user-content',  #для получения описаний компаний
 ]
 
 
@@ -28,26 +29,40 @@ def getelement(url, name_class,
     dictionary_employers = {}
     if name_class != 'employers-company__pager':    #если это поиск ссылок на компании
         for i in obj_from_container:
-            dictionary_employers[i.get('href')] = i.get_text()
+            dictionary_employers[i.get('href')] = i.get_text()#ключи - это ссылки, значения - название
     else:
         if obj_from_container[-1].get_text() == 'дальше':   #Если это поиск ссылки на след.страницу
             dictionary_employers['next_link'] = obj_from_container[-1].get('href')
     return dictionary_employers  # Возвращаем словарь найденных ссылок(из 1 элемента, если это ссылка на некст пэйдж)
 
+def infocollection(url, name_class): #Функция для сбора описания о компании
+    page = urlopen(url, timeout=3)
+    bsObj = BeautifulSoup(page.read(), "html.parser")
+    container = bsObj.find('div', {'class': name_class})
+    if container == None:
+        return ''
+    obj_from_container = container.findAll('p', attrs={'class': None})
+    description = ''
+    for i in obj_from_container:
+        description += i.get_text()
+    return description
 
 def writeinfile(anydict):  # Пишем в файл словарь, который передадим в функцию.
     with open('list employers.txt', 'a') as f:
         for i in anydict:
-            f.write(anydict[i] + '\n')
-            f.write('URL:' + '\n')
             f.write(i + '\n')
-            f.write('----------' + '\n')
+            f.write(anydict[i] + '\n')
+        f.write('----------' + '\n')
 
 
 def getemployers(base_url, url, name_class, list_re):  # Получаем строку ссылки, строку имени класса тега, строку регулярки
     dict_of_employers = getelement(url, name_class[1], list_re[1])  # Получаем ссылки на текущей странице
-    writeinfile(dict_of_employers)  # Пишем все найденные ссылки в файл
-    print(url)
+    infodict = {}
+    for i in dict_of_employers:
+        infodict['url'] = i
+        infodict['name'] = dict_of_employers[i]
+        infodict['description'] = infocollection(base_url+i, name_class[2])
+        writeinfile(infodict)  # Пишем всю инфу по одной в файл
     next_link = list(getelement(url, name_class[0], list_re[0]).values())  # Получаем следующую ссылку
     print(next_link)
     if len(next_link) > 0:
